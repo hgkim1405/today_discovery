@@ -1,0 +1,23 @@
+{
+  "name": "@today/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/main.ts",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "test": "node --import tsx --test src/app.test.ts src/domain/search.test.ts",
+    "db:migrate": "node --env-file-if-exists=../../.env dist/db/migrate.js up",
+    "db:rollback": "node --env-file-if-exists=../../.env dist/db/migrate.js down",
+    "sample:import:db": "node --env-file-if-exists=../../.env --import tsx src/db/import-sample.ts ../../.tmp/research-import.json"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.3.1",
+    "@today/contracts": "1.0.0",
+    "fastify": "5.12.5",
+    "mysql2": "3.24.4",
+    "zod": "4.6.5"
+  }
+}

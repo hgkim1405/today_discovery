@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+.npm-cache
+**/dist
+.tmp
+.venv
+__pycache__
+*.log

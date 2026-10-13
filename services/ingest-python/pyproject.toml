@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "today-discovery-ingest"
+version = "1.0.0"
+description = "Inspection and normalization tools for public research samples"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+discovery-ingest = "ingest_python.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

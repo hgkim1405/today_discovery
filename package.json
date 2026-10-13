@@ -1,0 +1,42 @@
+{
+  "name": "today-discovery",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.16.0",
+    "npm": "10.9.2"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "contracts:generate": "openapi-typescript 04_OPENAPI_v1.yaml -o packages/contracts/src/openapi.d.ts",
+    "build": "npm run contracts:generate && npm run build -w @today/contracts && npm run build -w @today/api && npm run build -w @today/web",
+    "typecheck": "npm run contracts:generate && npm run typecheck -w @today/contracts && npm run typecheck -w @today/api && npm run typecheck -w @today/web",
+    "lint": "eslint apps packages",
+    "test": "npm run build -w @today/contracts && npm run test -w @today/contracts && npm run test -w @today/api",
+    "format:check": "prettier --check apps packages docs .github docker-compose.yml eslint.config.js package.json tsconfig.base.json README.md --ignore-path .prettierignore",
+    "contracts:check": "npm run contracts:generate",
+    "db:migrate": "npm run db:migrate -w @today/api",
+    "db:rollback": "npm run db:rollback -w @today/api",
+    "sample:validate": "python services/ingest-python/src/ingest_python/cli.py validate data/research-samples/verified_public_web_sample_2026-10-13.csv",
+    "sample:import": "python services/ingest-python/src/ingest_python/cli.py export data/research-samples/verified_public_web_sample_2026-10-13.csv --output .tmp/research-import.json && npm run sample:import:db",
+    "sample:import:db": "npm run sample:import:db -w @today/api",
+    "dev:api": "npm run dev -w @today/api",
+    "dev:web": "npm run dev -w @today/web"
+  },
+  "devDependencies": {
+    "@types/node": "22.16.5",
+    "@typescript-eslint/eslint-plugin": "8.71.0",
+    "@typescript-eslint/parser": "8.71.0",
+    "eslint": "9.28.0",
+    "eslint-plugin-vue": "10.11.1",
+    "prettier": "3.5.3",
+    "typescript": "5.9.3",
+    "openapi-typescript": "7.13.0",
+    "tsx": "4.23.15",
+    "vue-tsc": "3.3.13"
+  }
+}

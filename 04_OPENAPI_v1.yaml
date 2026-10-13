@@ -1,0 +1,549 @@
+openapi: 3.1.0
+info:
+  title: 오늘의 발견 Public and Internal API
+  version: 1.0.0
+  description: >-
+    Internal contract for the new service, NOT the upstream providers' API. All paths
+    use server-normalized data. ISO date YYYY-MM-DD, timestamps RFC3339 UTC. Unknown
+    prices/booking states MUST remain unknown. Actual OAuth and provider details gated.
+servers:
+  - url: /api/v1
+security: []
+tags:
+  - name: Discovery
+  - name: Personal
+  - name: Operations
+paths:
+  /activities:
+    get:
+      tags: [Discovery]
+      summary: Search normalized activities
+      parameters:
+        - {name: region, in: query, schema: {type: string, maxLength: 12}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {name: activityType, in: query, schema: {$ref: '#/components/schemas/ActivityType'}}
+        - {name: freeOnly, in: query, schema: {type: boolean, default: false}}
+        - {name: maxConfirmedPriceKrw, in: query, schema: {type: integer, minimum: 0}}
+        - {name: query, in: query, schema: {type: string, maxLength: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+      responses:
+        '200':
+          description: Paginated results. freeOnly excludes MIXED and UNKNOWN unless the requested child program is confirmed free.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ActivityPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /activities/{activityId}:
+    get:
+      tags: [Discovery]
+      parameters:
+        - {$ref: '#/components/parameters/ActivityId'}
+      responses:
+        '200':
+          description: Detailed activity with provenance and verified booking status
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ActivityDetail'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /activities/{activityId}/programs:
+    get:
+      tags: [Discovery]
+      parameters:
+        - {$ref: '#/components/parameters/ActivityId'}
+      responses:
+        '200':
+          description: Program listings. Empty if the parent event does not expose any programs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Program'}}
+  /programs/{programId}/sessions:
+    get:
+      tags: [Discovery]
+      parameters:
+        - {name: programId, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: Only real verified date/time sessions; do not synthesize session timestamps
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Session'}}
+  /discover/recommendations:
+    get:
+      tags: [Discovery]
+      parameters:
+        - {name: region, in: query, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 20, default: 10}}
+      responses:
+        '200':
+          description: Filtered, ranked public activities; includes ranking explanation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, generatedAt]
+                properties:
+                  generatedAt: {type: string, format: date-time}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [activity, reasons]
+                      properties:
+                        activity: {$ref: '#/components/schemas/Activity'}
+                        reasons: {type: array, items: {type: string}}
+  /me:
+    get:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Current authenticated user
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /me/preferences:
+    get:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: User preferences
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Preferences'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    patch:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreferencesPatch'}
+      responses:
+        '200':
+          description: Updated preferences
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Preferences'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /me/favorites:
+    get:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Saved activities
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Activity'}}
+    post:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [activityId]
+              properties:
+                activityId: {$ref: '#/components/schemas/Id'}
+      responses:
+        '201': {description: Added, or 200 already present by idempotent behavior}
+        '200': {description: Already present}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /me/favorites/{activityId}:
+    delete:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/ActivityId'}
+        - {$ref: '#/components/parameters/CsrfHeader'}
+      responses:
+        '204': {description: Removed, also returned if already absent}
+  /me/experiences:
+    get:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Personal experience records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Experience'}}
+    post:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ExperienceCreate'}
+      responses:
+        '201':
+          description: New self-reported experience, private by default
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Experience'}
+  /missions:
+    get:
+      tags: [Personal]
+      responses:
+        '200':
+          description: Public monthly mission definitions; progress needs authentication
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Mission'}}
+  /me/notifications:
+    get:
+      tags: [Personal]
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Notification list for current user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Notification'}}
+  /reports:
+    post:
+      tags: [Discovery]
+      description: Can be sent by guest, rate-limited with abuse prevention
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activityId, reason]
+              additionalProperties: false
+              properties:
+                activityId: {$ref: '#/components/schemas/Id'}
+                reason: {type: string, enum: [WRONG_DATE, WRONG_PRICE, BROKEN_LINK, COPYRIGHT, OTHER]}
+                details: {type: string, maxLength: 2000}
+      responses:
+        '202': {description: Report queued for review; does not immediately change public content}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+  /admin/sources/{sourceCode}/runs:
+    get:
+      tags: [Operations]
+      security: [{cookieAuth: []}]
+      description: ADMIN role only; expose aggregate sync diagnostics without secrets
+      parameters:
+        - {name: sourceCode, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Recent sync runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/SyncRun'}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/merge-cases:
+    get:
+      tags: [Operations]
+      security: [{cookieAuth: []}]
+      description: Curator/Admin access; candidate duplicates require human review
+      responses:
+        '200':
+          description: Cases
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/MergeCase'}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/merge-cases/{caseId}:
+    patch:
+      tags: [Operations]
+      security: [{cookieAuth: []}]
+      description: Curator/Admin records a human decision; source records remain unchanged and no automatic merge occurs
+      parameters:
+        - {name: caseId, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+        - {$ref: '#/components/parameters/CsrfHeader'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              additionalProperties: false
+              properties:
+                decision: {type: string, enum: [SAME_EVENT, DIFFERENT_EVENT]}
+      responses:
+        '204': {description: Human review decision recorded}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /health/ready:
+    get:
+      tags: [Operations]
+      description: Deployment readiness. Do not expose secrets or upstream tokens.
+      responses:
+        '200': {description: API and DB ready}
+        '503': {description: DB or critical dependency unavailable}
+components:
+  parameters:
+    ActivityId:
+      name: activityId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    CsrfHeader:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: {type: string}
+      description: CSRF protection for cookie-authenticated state-changing requests
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-discovery_session
+      description: HttpOnly, Secure, SameSite=Lax, Path=/ in production; implement OAuth login through documented provider flows
+  schemas:
+    Id: {type: string, minLength: 26, maxLength: 26, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+    ActivityType: {type: string, enum: [FESTIVAL, PERFORMANCE, EXHIBITION, CLASS, SPORTS, FACILITY, OTHER]}
+    PriceKind: {type: string, enum: [FREE, PAID, MIXED, UNKNOWN]}
+    BookingStatus: {type: string, enum: [OPEN, CLOSED, WAITLIST, NOT_REQUIRED, UNKNOWN]}
+    Activity:
+      type: object
+      required: [id, title, activityType, lifecycle, priceKind, bookingStatus, verificationLevel, sourceAttributions]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        title: {type: string}
+        summary: {type: [string, 'null']}
+        activityType: {$ref: '#/components/schemas/ActivityType'}
+        lifecycle: {type: string, enum: [PUBLISHED, PARTIAL, STALE, CONFLICT, BLOCKED, ARCHIVED]}
+        regionCode: {type: [string, 'null']}
+        startOn: {type: [string, 'null'], format: date}
+        endOn: {type: [string, 'null'], format: date}
+        priceKind: {$ref: '#/components/schemas/PriceKind'}
+        priceNote: {type: [string, 'null']}
+        bookingStatus: {$ref: '#/components/schemas/BookingStatus'}
+        bookingStatusCheckedAt: {type: [string, 'null'], format: date-time}
+        verificationLevel: {type: string, enum: [OFFICIAL_API, OFFICIAL_PAGE, PARTNER_VERIFIED, USER_SUBMITTED_UNVERIFIED]}
+        lastVerifiedAt: {type: [string, 'null'], format: date-time}
+        place: {$ref: '#/components/schemas/Place'}
+        officialDetailUrl: {type: [string, 'null'], format: uri}
+        sourceAttributions: {type: array, items: {$ref: '#/components/schemas/Attribution'}}
+    ActivityDetail:
+      allOf:
+        - {$ref: '#/components/schemas/Activity'}
+        - type: object
+          required: [programs]
+          properties:
+            programs: {type: array, items: {$ref: '#/components/schemas/Program'}}
+    ActivityPage:
+      type: object
+      required: [items, nextCursor, generatedAt]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Activity'}}
+        nextCursor: {type: [string, 'null']}
+        generatedAt: {type: string, format: date-time}
+    Place:
+      type: [object, 'null']
+      required: [geocodeStatus]
+      properties:
+        name: {type: [string, 'null']}
+        address: {type: [string, 'null']}
+        lat: {type: [number, 'null'], minimum: -90, maximum: 90}
+        lng: {type: [number, 'null'], minimum: -180, maximum: 180}
+        geocodeStatus: {type: string, enum: [NOT_PROVIDED, FROM_SOURCE, VERIFIED, CONFLICT]}
+    Attribution:
+      type: object
+      required: [sourceCode, sourceUrl]
+      properties:
+        sourceCode: {type: string}
+        sourceUrl: {type: string, format: uri}
+        attributionText: {type: [string, 'null']}
+    Program:
+      type: object
+      required: [id, activityId, name, priceKind]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        activityId: {$ref: '#/components/schemas/Id'}
+        name: {type: string}
+        description: {type: [string, 'null']}
+        priceKind: {$ref: '#/components/schemas/PriceKind'}
+        minPriceKrw: {type: [integer, 'null'], minimum: 0}
+        maxPriceKrw: {type: [integer, 'null'], minimum: 0}
+        priceNote: {type: [string, 'null']}
+        participationNote: {type: [string, 'null']}
+    Session:
+      type: object
+      required: [id, programId, bookingStatus]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        programId: {$ref: '#/components/schemas/Id'}
+        startsAt: {type: [string, 'null'], format: date-time}
+        endsAt: {type: [string, 'null'], format: date-time}
+        bookingStatus: {$ref: '#/components/schemas/BookingStatus'}
+        bookingUrl: {type: [string, 'null'], format: uri}
+        bookingCheckedAt: {type: [string, 'null'], format: date-time}
+        priceKrw: {type: [integer, 'null'], minimum: 0}
+        seatsAvailable: {type: [integer, 'null'], minimum: 0}
+        seatsCheckedAt: {type: [string, 'null'], format: date-time}
+    User:
+      type: object
+      required: [id, role]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        displayName: {type: [string, 'null']}
+        role: {type: string, enum: [USER, CURATOR, ADMIN]}
+    Preferences:
+      type: object
+      required: [notificationsOptIn, emailMarketingOptIn]
+      properties:
+        regionCode: {type: [string, 'null']}
+        preferredCategories: {type: array, items: {$ref: '#/components/schemas/ActivityType'}}
+        maxBudgetKrw: {type: [integer, 'null'], minimum: 0}
+        notificationsOptIn: {type: boolean}
+        emailMarketingOptIn: {type: boolean}
+    PreferencesPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        regionCode: {type: [string, 'null']}
+        preferredCategories: {type: array, items: {$ref: '#/components/schemas/ActivityType'}}
+        maxBudgetKrw: {type: [integer, 'null'], minimum: 0}
+        notificationsOptIn: {type: boolean}
+        emailMarketingOptIn: {type: boolean}
+    ExperienceCreate:
+      type: object
+      additionalProperties: false
+      required: [experiencedOn]
+      properties:
+        activityId: {$ref: '#/components/schemas/Id'}
+        experiencedOn: {type: string, format: date}
+        title: {type: string, maxLength: 250}
+        memo: {type: string, maxLength: 10000}
+    Experience:
+      type: object
+      required: [id, experiencedOn, proofLevel, visibility]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        activityId: {$ref: '#/components/schemas/Id'}
+        experiencedOn: {type: string, format: date}
+        title: {type: [string, 'null']}
+        memo: {type: [string, 'null']}
+        proofLevel: {type: string, enum: [SELF_REPORTED, ORGANIZER_CONFIRMED]}
+        visibility: {type: string, enum: [PRIVATE, LINK_ONLY, PUBLIC]}
+    Mission:
+      type: object
+      required: [id, title, startsOn, endsOn]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        title: {type: string}
+        startsOn: {type: string, format: date}
+        endsOn: {type: string, format: date}
+    Notification:
+      type: object
+      required: [id, kind, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        kind: {type: string}
+        createdAt: {type: string, format: date-time}
+        payload: {type: object}
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        detail: {type: string}
+        instance: {type: string}
+        code: {type: string}
+    SyncRun:
+      type: object
+      required: [id, state, fetched, accepted, rejected]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        state: {type: string, enum: [STARTED, SUCCESS, PARTIAL, FAILED]}
+        fetched: {type: integer, minimum: 0}
+        accepted: {type: integer, minimum: 0}
+        rejected: {type: integer, minimum: 0}
+        startedAt: {type: string, format: date-time}
+        finishedAt: {type: [string, 'null'], format: date-time}
+    MergeCase:
+      type: object
+      required: [id, leftSourceRecordId, rightSourceRecordId, decision]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        leftSourceRecordId: {$ref: '#/components/schemas/Id'}
+        rightSourceRecordId: {$ref: '#/components/schemas/Id'}
+        decision: {type: string, enum: [OPEN, SAME_EVENT, DIFFERENT_EVENT]}
+  responses:
+    BadRequest:
+      description: Invalid or conflicting filters
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotFound:
+      description: Not found or not publicly available
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Forbidden:
+      description: Role is not authorized
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Conflict:
+      description: The resource state changed before the request could be applied
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}

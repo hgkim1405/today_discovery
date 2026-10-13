@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-13",
+  "method": "공식 관광/지자체 웹페이지의 공개 목록·일부 상세에서 확인한 비무작위 목적 표본. API 직접 응답은 아님.",
+  "raw_records": 41,
+  "event_level_records": 40,
+  "program_level_records": 1,
+  "distinct_exact_record_keys": 37,
+  "exact_duplicate_group_count": 4,
+  "extra_rows_caused_by_exact_duplicates": 4,
+  "exact_duplicate_groups": [
+    [
+      "R003",
+      "R035"
+    ],
+    [
+      "R005",
+      "R041"
+    ],
+    [
+      "R008",
+      "R037"
+    ],
+    [
+      "R027",
+      "R040"
+    ]
+  ],
+  "covered_region_count": 17,
+  "covered_regions": [
+    "강원",
+    "경기",
+    "경남",
+    "경북",
+    "광주",
+    "대구",
+    "대전",
+    "부산",
+    "서울",
+    "세종",
+    "울산",
+    "인천",
+    "전남",
+    "전북",
+    "제주",
+    "충남",
+    "충북"
+  ],
+  "by_schedule_status": {
+    "ONGOING": 2,
+    "FUTURE": 21,
+    "PAST": 18
+  },
+  "field_presence_counts": {
+    "title": 41,
+    "region": 41,
+    "starts_on": 41,
+    "ends_on": 41,
+    "venue_or_address": 15,
+    "price_text": 6,
+    "reservation_detail_url": 0,
+    "event_detail_url": 5,
+    "session_time_text": 3,
+    "application_opens_at": 0
+  },
+  "known_price_count": 6,
+  "booking_evidence_count": 1,
+  "by_source": {
+    "KTO_CULTURAL_LIST": 26,
+    "KTO_NATIONWIDE_LIST": 3,
+    "DAEJEON_EVENT_PORTAL": 3,
+    "ULSAN_TOURISM": 1,
+    "DAEGU_EVENT_OFFICIAL": 1,
+    "CHUNGBUK_TOURISM": 2,
+    "GWANGJU_FESTIVAL_OFFICIAL": 2,
+    "VISITJEJU_FESTIVAL_OFFICIAL": 2,
+    "VISITBUSAN_FESTIVAL_OFFICIAL": 1
+  },
+  "limitations": [
+    "KTO/공유누리/서울 API 인증키를 발급받지 못해 응답 필드와 전체 데이터 건수를 측정하지 못함",
+    "공식 공개 웹페이지 표본에서 날짜·지역 등 항목을 확인한 결과이지 출처 전체 데이터의 품질 비율이 아님",
+    "공식 목록과 상세페이지의 필드 집합 차이 때문에 가격 결측은 공개 목록에서 미확인된 값임",
+    "웹페이지에서 링크 존재 여부와 실제 예약 잔여석·접수상태는 다름",
+    "일정 상태 PAST/FUTURE/ONGOING은 참고일 기준 날짜 계산이고 실제 개최확정/예약 가능과 다름"
+  ]
+}
