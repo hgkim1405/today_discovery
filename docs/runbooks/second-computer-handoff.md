@@ -9,6 +9,7 @@ Checkpoint recorded 2026-10-13 (Asia/Seoul).
 - The ignored `.env` exists on this PC. Its password is intentionally not copied into this document. Recreate the file securely on the second PC; do not assume it transfers with source control.
 - Import state: 41 research-only source records and four duplicate-review cases; zero published activities. The import marks sources disabled and approval-pending. Do not present the sample as live inventory or booking availability.
 - `npm run build` passed. API readiness returned `status=ready` and `database=ready`; web returned HTTP 200 and its `/api` proxy reached the ready API.
+- `npm run typecheck` passed after the root script was updated to build `@today/contracts` declarations before checking the API. This also works from a clean checkout where `dist` is absent.
 - API and web development servers are running on this PC at `http://localhost:3000` and `http://localhost:5173`. On the second PC, `localhost` refers to that second PC; these processes and the MySQL database do not move with the document.
 - Docker/Compose is unavailable on the current PC, so Compose startup was not verified. Automated tests were not rerun during this database handoff.
 

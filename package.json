@@ -14,7 +14,7 @@
   "scripts": {
     "contracts:generate": "openapi-typescript 04_OPENAPI_v1.yaml -o packages/contracts/src/openapi.d.ts",
     "build": "npm run contracts:generate && npm run build -w @today/contracts && npm run build -w @today/api && npm run build -w @today/web",
-    "typecheck": "npm run contracts:generate && npm run typecheck -w @today/contracts && npm run typecheck -w @today/api && npm run typecheck -w @today/web",
+    "typecheck": "npm run contracts:generate && npm run typecheck -w @today/contracts && npm run build -w @today/contracts && npm run typecheck -w @today/api && npm run typecheck -w @today/web",
     "lint": "eslint apps packages",
     "test": "npm run build -w @today/contracts && npm run test -w @today/contracts && npm run test -w @today/api",
     "format:check": "prettier --check apps packages docs .github docker-compose.yml eslint.config.js package.json tsconfig.base.json README.md --ignore-path .prettierignore",
